@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TobyFlow Studio - AutoFlow Pro Edition</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+
+<body>
+  <div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">T<span>F</span></div>
+        <div>
+          <strong>TobyFlow</strong>
+          <small>AutoFlow Pro</small>
+        </div>
+      </div>
+
+      <div class="side-label">KHÔNG GIAN LÀM VIỆC</div>
+      <nav class="side-nav" aria-label="Điều hướng chính">
+        <button class="nav-item active" data-view="library">
+          <span class="nav-icon">▦</span> Thư viện video
+          <span id="nav-count" class="pill-count">0</span>
+        </button>
+        <button class="nav-item" data-view="history">
+          <span class="nav-icon">📜</span> Video đã lưu & Lịch sử
+          <span id="nav-saved-count" class="pill-count">0</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">⚙</span> Cài đặt & Thư mục
+        </button>
+      </nav>
+
+      <div class="side-label second-label">TRẠNG THÁI HỆ THỐNG</div>
+      <div class="connection-card" id="sidebar-connection-card">
+        <div class="connection-dot online" id="connection-dot"></div>
+        <div>
+          <strong id="connection-title">Tự Động Lưu Video</strong>
+          <small id="connection-subtitle">Theo dõi thư mục Chrome</small>
+        </div>
+      </div>
+
+      <div class="sidebar-bottom">
+        <div class="side-footnote">
+          <strong>Chế độ AutoFlow Pro:</strong><br>
+          Tạo video trên TobyFlow Chrome.<br>
+          Studio tự động theo dõi thư mục tải về &amp; tự động lưu video theo ngày.<br>
+          Không cần token MCP.
+        </div>
+        <div id="sidebar-app-version" style="margin-top:10px; font-size:11px; color:var(--muted); text-align:center;">
+          TobyFlow Studio <strong id="sidebar-version-tag" style="color:var(--accent);">v2.0.0</strong>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumb">
+          Không gian làm việc <span>›</span> <strong id="topbar-current-view">Thư viện video</strong>
+        </div>
+        <div class="topbar-actions">
+          <span id="clock" class="clock"></span>
+          <button id="top-settings" class="icon-button" title="Mở Cài đặt" aria-label="Cài đặt">⚙</button>
+        </div>
+      </header>
+
+      <div class="main-inner">
+
+        <!-- ================= VIEW 1: THƯ VIỆN VIDEO (GIAO DIỆN CHÍNH) ================= -->
+        <section id="view-library" class="view-panel active">
+          <!-- Guidance Banner: Displayed when folders are not configured -->
+          <div id="unconfigured-banner"
+            style="background:#201c10; border:1px solid #eab308; border-radius:12px; padding:16px 20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;"
+            hidden>
+            <div style="display:flex; gap:14px; align-items:center;">
+              <span style="font-size:24px;">⚠️</span>
+              <div>
+                <strong style="color:#fde047; font-size:14px; display:block; margin-bottom:4px;">Chưa hoàn tất cấu hình
+                  thư mục</strong>
+                <p id="unconfigured-text" style="color:#d4d4d8; font-size:13px; margin:0;">
+                  Để tự động phát hiện và lưu video theo ngày, bạn cần chọn Thư mục nguồn (Chrome Downloads) và Thư mục
+                  gốc lưu trữ.
+                </p>
+              </div>
+            </div>
+            <button class="button primary" id="btn-banner-go-settings" style="white-space:nowrap; margin-left:16px;">
+              <span>⚙</span> Đi đến Cài đặt ngay
+            </button>
+          </div>
+
+          <!-- AUTO-SAVE CONTROL & STATUS CARD -->
+          <div class="card"
+            style="background:#151821; border:1px solid #2d3345; border-radius:14px; padding:18px 22px; margin-bottom:20px;">
+            <div
+              style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:24px;">⚡</span>
+                <div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <strong style="font-size:15px; color:#fff;">CHẾ ĐỘ TỰ ĐỘNG LƯU VIDEO</strong>
+                    <span id="autosave-badge" class="video-badge badge-saved"
+                      style="font-size:11px; padding:2px 8px;">ĐANG BẬT</span>
+                  </div>
+                  <small style="color:var(--muted); font-size:12px;">
+                    Tự động nhận diện khi Chrome tải xong và sao chép vào thư mục ngày mà không cần bấm nút Lưu.
+                  </small>
+                </div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button class="button secondary" id="btn-toggle-autosave" style="font-size:12px;">
+                  <span id="btn-toggle-autosave-icon">⏸</span> <span id="btn-toggle-autosave-text">Tạm dừng Tự Động
+                    Lưu</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Auto-Save Realtime Counters -->
+            <div
+              style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:14px;">
+              <div
+                style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:11px; color:var(--muted);">⏳ Đang chờ</div>
+                <strong id="stat-queue-pending" style="font-size:18px; color:#fde047;">0</strong>
+              </div>
+              <div
+                style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:11px; color:var(--muted);">⚙ Đang sao chép</div>
+                <strong id="stat-queue-processing" style="font-size:18px; color:#60a5fa;">0</strong>
+              </div>
+              <div
+                style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:11px; color:var(--muted);">✓ Đã tự động lưu</div>
+                <strong id="stat-queue-saved" style="font-size:18px; color:#4ade80;">0</strong>
+              </div>
+              <div
+                style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px;">
+                <div style="font-size:11px; color:var(--muted);">⚠ Bị lỗi</div>
+                <strong id="stat-queue-failed" style="font-size:18px; color:#f87171;">0</strong>
+              </div>
+            </div>
+
+            <div
+              style="font-size:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:80%;">
+                <span style="color:var(--muted);">📁 Đường dẫn file cuối đã lưu:</span>
+                <code id="last-saved-path"
+                  style="background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px; color:#d6f36a; margin-left:6px;">Chưa có</code>
+              </div>
+              <div id="failed-retry-container" hidden>
+                <button class="button secondary" id="btn-retry-all-failed"
+                  style="padding:4px 10px; font-size:11px; color:#f87171;">
+                  ↻ Thử lại tất cả video lỗi
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overview Cards -->
+          <div class="overview" aria-label="Tổng quan media">
+            <div class="overview-card">
+              <div class="overview-icon violet">▦</div>
+              <div>
+                <span>Video trong thư mục nguồn</span>
+                <strong id="stat-total">0</strong>
+              </div>
+            </div>
+            <div class="overview-card">
+              <div class="overview-icon orange">◇</div>
+              <div>
+                <span>Chưa lưu</span>
+                <strong id="stat-unsaved">0</strong>
+              </div>
+            </div>
+            <div class="overview-card">
+              <div class="overview-icon green">✓</div>
+              <div>
+                <span>Đã lưu vào đĩa theo ngày</span>
+                <strong id="stat-saved">0</strong>
+              </div>
+            </div>
+            <div class="overview-card destination-card">
+              <div style="width:100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span>Thư mục nguồn (Downloads):</span>
+                  <button class="small-link" id="btn-quick-change-source">Đổi nguồn ↗</button>
+                </div>
+                <strong id="quick-source-label"
+                  style="font-size:13px; font-weight:600; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                  title="Chưa chọn">Đang tải...</strong>
+
+                <div
+                  style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; margin-bottom:4px;">
+                  <span>Thư mục gốc lưu trữ:</span>
+                  <button class="small-link" id="change-folder">Đổi đích ↗</button>
+                </div>
+                <strong id="destination-label"
+                  style="font-size:13px; font-weight:600; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                  title="Chưa chọn">Chưa chọn</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Bar: Current Expected Save Path -->
+          <div
+            style="background:rgba(214,243,106,0.06); border:1px solid rgba(214,243,106,0.18); border-radius:12px; padding:12px 18px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:13px;">
+              <span style="color:var(--accent); font-weight:700;">📅 Thư mục lưu hôm nay (Asia/Bangkok):</span>
+              <code id="today-subfolder-path"
+                style="background:rgba(0,0,0,0.3); padding:3px 7px; border-radius:5px; margin-left:8px; color:#fff;">Đang tính toán...</code>
+            </div>
+            <div style="font-size:12px; color:var(--muted);">
+              Tên file: <code>YYYY-MM-DD_HH-mm-ss_001.mp4</code> (Chống trùng lặp)
+            </div>
+          </div>
+
+          <!-- Library Section -->
+          <div class="library-section">
+            <div class="section-heading">
+              <div>
+                <div class="section-kicker">THEO DÕI LIÊN TỤC · TỰ ĐỘNG LƯU</div>
+                <h2 id="view-heading">Thư Viện Video Tải Về</h2>
+                <p id="view-subtitle">Tự động phát hiện video mới từ thư mục Chrome/TobyFlow và tự động lưu vào thư mục
+                  ngày. Giữ nút lưu thủ công bên dưới làm dự phòng.</p>
+              </div>
+              <div class="heading-count" id="heading-count">0 VIDEO</div>
+            </div>
+
+            <div class="library-subnav">
+              <button class="subnav-chip active" data-libfilter="all">Tất cả (<span id="cnt-all">0</span>)</button>
+              <button class="subnav-chip" data-libfilter="unsaved">Chưa lưu (<span id="cnt-unsaved">0</span>)</button>
+              <button class="subnav-chip" data-libfilter="saved">Đã lưu (<span id="cnt-saved">0</span>)</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="search-box">
+                <span>⌕</span>
+                <input id="search" type="search" placeholder="Tìm theo tên file hoặc mô tả video..."
+                  aria-label="Tìm video">
+              </div>
+              <div class="toolbar-right">
+                <button class="toolbar-button" id="btn-open-source-dir" title="Mở thư mục Chrome tải về trên máy tính">
+                  <span>📁</span> Mở thư mục tải về
+                </button>
+                <button class="toolbar-button primary-accent" id="btn-scan-source">
+                  <span>↻</span> Quét lại thư mục tải
+                </button>
+              </div>
+            </div>
+
+            <!-- Video Grid -->
+            <div class="grid" id="video-grid"></div>
+
+            <div class="empty" id="empty-state" hidden>
+              <div class="empty-symbol">📂</div>
+              <h3>Chưa tìm thấy video nào trong thư mục tải về</h3>
+              <p id="empty-message">Hãy mở TobyFlow extension trong Chrome, tạo video và bật Auto Download, hoặc kiểm
+                tra lại Thư mục nguồn trong Cài đặt.</p>
+              <button class="button secondary" id="btn-empty-settings">Cấu hình Thư mục nguồn</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 2: VIDEO ĐÃ LƯU & LỊCH SỬ ================= -->
+        <section id="view-history" class="view-panel">
+          <div class="section-heading">
+            <div>
+              <div class="section-kicker">LỊCH SỬ LƯU THEO NGÀY</div>
+              <h2>Video Đã Lưu &amp; Xác Minh (Asia/Bangkok)</h2>
+              <p>Danh sách các file video đã được kiểm tra bằng <code>ffprobe</code> và sao chép vào thư mục con theo
+                ngày <code>YYYY-MM-DD</code>.</p>
+            </div>
+            <button class="button secondary" id="btn-open-dest-dir">
+              <span>📁</span> Mở thư mục gốc lưu trữ
+            </button>
+          </div>
+
+          <div class="card history-box">
+            <div class="table-responsive">
+              <table class="styled-table" id="table-history">
+                <thead>
+                  <tr>
+                    <th>Tên file lưu chính thức</th>
+                    <th>Thư mục ngày</th>
+                    <th>Dung lượng</th>
+                    <th>Thời điểm lưu</th>
+                    <th>Trạng thái file</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody">
+                  <tr>
+                    <td colspan="6" class="text-center text-muted">Chưa có video nào được lưu vào thư mục đích.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW 3: CÀI ĐẶT & THƯ MỤC ================= -->
+        <section id="view-settings" class="view-panel">
+          <div class="settings-grid">
+            <!-- Source & Destination Configuration Card -->
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="section-kicker">CẤU HÌNH THƯ MỤC AUTOFLOW PRO</div>
+                  <h2>Thư Mục Nguồn &amp; Thư Mục Đích</h2>
+                </div>
+              </div>
+              <div class="form-intro">
+                Studio hoạt động độc lập với tiện ích TobyFlow trên Chrome: tự động giám sát thư mục Chrome tải video về
+                và tự động lưu vào thư mục ngày mà bạn chỉ định.
+              </div>
+
+              <!-- Source Folder -->
+              <div class="form-group">
+                <label for="settings-source-folder">
+                  1. Thư mục nguồn tải về của Chrome / TobyFlow <span class="required">*</span>
+                </label>
+                <div class="folder-row">
+                  <input id="settings-source-folder" type="text" placeholder="Ví dụ: C:\Users\Tên\Downloads"
+                    spellcheck="false">
+                  <button class="button secondary" id="settings-browse-source">Duyệt...</button>
+                </div>
+                <div class="field-hint" style="margin-top:6px; color:#cbd0dc;">
+                  💡 <strong>Cách tìm thư mục tải về trong Chrome:</strong> Trong Chrome, bấm tổ hợp phím
+                  <code>Ctrl + J</code> để mở trang Downloads → bấm "Hiển thị trong thư mục" (Show in folder) cạnh một
+                  file video bất kỳ để xem chính xác thư mục tải về.
+                </div>
+              </div>
+
+              <!-- Destination Folder -->
+              <div class="form-group">
+                <label for="settings-destination">
+                  2. Thư mục gốc lưu trữ video chính thức <span class="required">*</span>
+                </label>
+                <div class="folder-row">
+                  <input id="settings-destination" type="text" placeholder="Ví dụ: E:\Videos\TobyFlow"
+                    spellcheck="false">
+                  <button class="button secondary" id="settings-browse-folder">Duyệt...</button>
+                </div>
+                <span class="field-hint">Khi có video tải về hoàn tất, Studio sẽ tự động tạo thư mục con theo ngày
+                  (YYYY-MM-DD) và sao chép video vào đây. File gốc trong thư mục tải về luôn được giữ nguyên.</span>
+              </div>
+
+              <!-- Auto-Save Toggle Option -->
+              <div class="form-group"
+                style="margin-top:14px; background:rgba(214,243,106,0.05); padding:12px 16px; border-radius:10px; border:1px solid rgba(214,243,106,0.15);">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin:0;">
+                  <input type="checkbox" id="settings-autosave-toggle"
+                    style="width:18px; height:18px; accent-color:var(--accent);" checked>
+                  <strong style="color:#fff;">Bật chế độ Tự Động Lưu Video (Khuyên dùng)</strong>
+                </label>
+                <div style="font-size:12px; color:var(--muted); margin-top:6px; margin-left:28px;">
+                  Khi bật, Studio sẽ tự động phát hiện, xác minh luồng video và sao chép vào thư mục ngày mà bạn không
+                  cần phải chọn thủ công.
+                </div>
+              </div>
+
+              <div class="form-actions" style="display:flex; gap:10px; margin-top:16px;">
+                <button class="button primary" id="settings-save-folders" style="flex:1;">
+                  <span>💾</span> Lưu Cấu Hình Thư Mục
+                </button>
+                <button class="button secondary" id="settings-rescan-btn">
+                  <span>🔄</span> Quét Thư Mục Tải Ngay
+                </button>
+              </div>
+
+              <div class="inline-status success" id="settings-folder-status" style="margin-top:12px;">Đã sẵn sàng giám
+                sát thư mục.</div>
+            </div>
+
+            <!-- Naming Rules & Automated Test Runner Card -->
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <div class="section-kicker">QUY TẮC LƯU THEO NGÀY</div>
+                  <h2>Đặt Tên &amp; Kiểm Thử Độ Tin Cậy</h2>
+                </div>
+              </div>
+
+              <div class="naming-preview-box">
+                <div class="section-kicker">CẤU TRÚC LƯU TRỮ TỰ ĐỘNG (ASIA/BANGKOK)</div>
+                <p style="margin:6px 0;"><strong>Thư mục con tự động:</strong>
+                  <code>&lt;Thư mục gốc&gt;\YYYY-MM-DD</code></p>
+                <p style="margin:6px 0;"><strong>Mẫu tên file:</strong> <code>YYYY-MM-DD_HH-mm-ss_001.mp4</code></p>
+                <p class="preview-sample" style="margin-top:12px;">
+                  Đường dẫn mẫu dự kiến hôm nay:<br>
+                  <strong id="preview-filename-sample" style="word-break:break-all; color:var(--accent);">Đang
+                    tải...</strong>
+                </p>
+                <ul style="font-size:12px; color:var(--muted); margin:10px 0 0; padding-left:18px;">
+                  <li><strong>Tự động lưu:</strong> Tự phát hiện và sao chép ngay khi video tải xong; không cần bấm nút.
+                  </li>
+                  <li><strong>Chống trùng lặp:</strong> Tự động tăng hậu tố <code>_001</code>, <code>_002</code>,
+                    <code>_003</code>... tuyệt đối không bao giờ ghi đè file cũ.</li>
+                  <li><strong>Độ tin cậy cao:</strong> Tự động bỏ qua file <code>.crdownload</code>, file đang tải dở
+                    hoặc thay đổi dung lượng.</li>
+                  <li><strong>Xác thực luồng video:</strong> Sử dụng <code>ffprobe</code> kiểm tra stream video hợp lệ
+                    trước khi báo đã lưu.</li>
+                  <li><strong>Bền vững sau khởi động lại:</strong> Khử trùng lặp theo đường dẫn nguồn và hash; khởi động
+                    lại không sao chép trùng.</li>
+                  <li><strong>Bảo tồn nguồn:</strong> Giữ nguyên 100% file gốc trong thư mục tải xuống.</li>
+                </ul>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="test-runner-box">
+                <div class="section-kicker">KIỂM THỬ HỆ THỐNG</div>
+                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">Chạy bài kiểm thử tự động nội bộ (tự
+                  tạo thư mục ngày, tự lưu video tải xong, chống trùng tên, xử lý hàng đợi, dọn file tạm khi lỗi,
+                  ffprobe).</p>
+                <button class="button secondary full" id="btn-run-mock-tests">
+                  <span>🧪</span> Chạy Kiểm Thử Tự Động Nội Bộ
+                </button>
+                <div class="test-report" id="test-report-box" hidden></div>
+              </div>
+            </div>
+
+            <!-- GitHub Releases Auto-Update Card -->
+            <div class="card update-card">
+              <div class="card-head">
+                <div>
+                  <div class="section-kicker">BẢN PHÁT HÀNH &amp; CẬP NHẬT</div>
+                  <h2>Cập Nhật TobyFlow Studio</h2>
+                </div>
+                <div class="badge-version" id="app-version-badge">v2.0.0</div>
+              </div>
+
+              <div class="update-body">
+                <div class="update-info-row">
+                  <div>
+                    <strong style="display:block; color:#fff; font-size:13px; margin-bottom:4px;">Kênh phát hành GitHub Releases</strong>
+                    <span style="font-size:12px; color:var(--muted);">Ứng dụng tự động kiểm tra phiên bản mới từ kho lưu trữ GitHub. Cập nhật không làm mất dữ liệu cấu hình, lịch sử hay video đã lưu.</span>
+                  </div>
+                </div>
+
+                <div class="update-status-box" id="update-status-box">
+                  <div class="update-status-header">
+                    <span class="status-indicator-dot" id="update-indicator-dot"></span>
+                    <span id="update-status-text" style="font-size:13px; font-weight:600;">Sẵn sàng kiểm tra phiên bản mới.</span>
+                  </div>
+
+                  <!-- Release Notes / Details (hidden by default) -->
+                  <div id="update-details-box" class="update-details" hidden>
+                    <div style="font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:4px;">Nội dung bản cập nhật mới (<span id="update-new-version-text"></span>):</div>
+                    <div id="update-release-notes" style="font-size:12px; color:#d4d4d8; max-height:120px; overflow-y:auto; line-height:1.5;"></div>
+                  </div>
+
+                  <!-- Download Progress Bar (hidden by default) -->
+                  <div id="update-progress-container" class="update-progress-wrap" hidden>
+                    <div class="progress-info-row">
+                      <span style="font-size:12px; font-weight:600;" id="update-progress-label">Đang tải bản cập nhật...</span>
+                      <span style="font-size:12px; color:var(--accent); font-weight:700;" id="update-progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-track">
+                      <div class="progress-bar-fill" id="update-progress-fill" style="width:0%;"></div>
+                    </div>
+                    <div style="font-size:11px; color:var(--muted); margin-top:4px;" id="update-progress-bytes">0 MB / 0 MB</div>
+                  </div>
+                </div>
+
+                <div class="update-actions" style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+                  <button class="button secondary" id="btn-check-updates">
+                    <span>🔄</span> Kiểm tra cập nhật
+                  </button>
+                  <button class="button primary" id="btn-download-update" hidden>
+                    <span>📥</span> Tải bản cập nhật mới
+                  </button>
+                  <button class="button primary-accent" id="btn-install-restart" hidden>
+                    <span>⚡</span> Cài đặt &amp; Khởi động lại
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Floating Selection Bar (Save Studio Fallback) -->
+  <div class="selection-bar" id="selection-bar" hidden>
+    <div>
+      <span class="selection-badge" id="selection-count">0</span>
+      <strong>video đã chọn</strong>
+      <button id="clear-selection" class="text-button">Bỏ chọn</button>
+    </div>
+    <button id="save-selected" class="button primary">↓ Lưu video đã chọn vào thư mục ngày</button>
+  </div>
+
+  <!-- Video Preview Modal Dialog -->
+  <div class="modal" id="preview-modal" hidden>
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-title" style="margin:0; font-size:16px;">Xem trước video</h3>
+          <small id="modal-subtitle" style="color:var(--muted);">Đang tải...</small>
+        </div>
+        <button class="icon-button" id="modal-close" title="Đóng cửa sổ">✕</button>
+      </div>
+      <div class="modal-player-wrap">
+        <video id="modal-video-player" controls autoplay playsinline></video>
+      </div>
+      <div class="modal-info-box">
+        <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">TÊN FILE GỐC:</div>
+        <div id="modal-prompt" style="font-size:13px; font-weight:600; margin-bottom:10px; word-break:break-all;">-
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span id="modal-badge-status" class="video-badge">Chưa lưu</span>
+          <button class="button primary" id="modal-save-btn">↓ Lưu video này vào thư mục ngày</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>

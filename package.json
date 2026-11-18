@@ -1,0 +1,29 @@
+{
+  "name": "tobyflow-studio-windows",
+  "version": "2.0.0",
+  "description": "Ứng dụng TobyFlow Studio trên Windows: Tự động lưu video từ Chrome/TobyFlow theo ngày, xác thực ffprobe, cài đặt và cập nhật qua GitHub Releases",
+  "main": "main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "start:server": "node server.js",
+    "test": "node tests/run_mock_suite.js",
+    "build": "electron-builder --win --x64",
+    "build:dir": "electron-builder --win --x64 --dir"
+  },
+  "keywords": [
+    "tobyflow",
+    "video-generator",
+    "save-studio",
+    "windows",
+    "electron"
+  ],
+  "author": "TobyFlow Team",
+  "license": "MIT",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0"
+  }
+}

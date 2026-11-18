@@ -1,0 +1,15 @@
+FFmpeg / ffprobe Source Code & Build Information
+=================================================
+
+Binary: ffprobe.exe (Windows x64 static build)
+Version: 9.0.1-essentials_build-www.gyan.dev
+Compiler: gcc 16.1.0 (Rev2, Built by MSYS2 project)
+Build Provider: Gyan Doshi (https://www.gyan.dev/ffmpeg/builds/)
+Source Code Repository: https://git.ffmpeg.org/ffmpeg.git
+Official Source Tarballs: https://ffmpeg.org/download.html
+
+Instructions to obtain the exact source code corresponding to this release:
+1. Clone the FFmpeg git repository:
+   git clone https://git.ffmpeg.org/ffmpeg.git
+2. For build scripts and configuration instructions used by Gyan.dev:
+   https://github.com/GyanD/codexffmpeg

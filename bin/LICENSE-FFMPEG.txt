@@ -1,0 +1,11 @@
+FFmpeg / ffprobe License Information
+=====================================
+
+This software bundles a static build of ffprobe from the FFmpeg project (https://ffmpeg.org).
+FFmpeg is licensed under the GNU Lesser General Public License (LGPL) version 2.1 or later.
+However, because this build is compiled with GPL-licensed components (such as --enable-gpl, --enable-version3, libx264, libx265), the resulting binary is licensed under the GNU General Public License (GPL) version 3.
+
+A copy of the GNU General Public License version 3 can be obtained at:
+https://www.gnu.org/licenses/gpl-3.0.html
+
+This distribution does not modify FFmpeg or ffprobe source code; it redistributes an unmodified static binary release compiled by gyan.dev.

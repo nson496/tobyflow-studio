@@ -1,0 +1,56 @@
+# TobyFlow Studio - Git Ignore Rules
+# Security & Privacy: STRICTLY NEVER commit user data, videos, tokens, or personal paths
+
+# User data and persistent states
+data/
+data/*
+Video/
+Video/*
+test_real_output/
+backup_pre_merge/
+
+# Video files anywhere
+*.mp4
+*.mov
+*.webm
+*.m4v
+*.mkv
+*.avi
+
+# Temp, partial, and staging files
+*.tmp
+*.part
+*.crdownload
+*.download
+*.temp_*
+
+# Large binaries (downloaded during build or packaged locally, avoid git 100MB limit)
+bin/*.exe
+
+# Credentials, tokens, logs, environment variables
+*.token
+*.env
+*.env.*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node dependencies
+node_modules/
+
+# Electron-builder distribution outputs
+dist/
+dist-unpacked/
+release/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
+*.swo

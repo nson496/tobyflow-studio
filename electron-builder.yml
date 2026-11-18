@@ -1,0 +1,60 @@
+appId: com.tobyflow.studio
+productName: TobyFlow Studio
+copyright: Copyright © 2026 TobyFlow Team
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - "main/**/*"
+  - "public/**/*"
+  - "server.js"
+  - "library.js"
+  - "package.json"
+  - "!bin/**/*"
+  - "!tests/**/*"
+  - "!data/**/*"
+  - "!Video/**/*"
+  - "!*.bat"
+  - "!*.md"
+  - "!*.log"
+  - "!*.mp4"
+  - "!*.mov"
+  - "!*.webm"
+  - "!*.m4v"
+  - "!*.tmp"
+  - "!*.part"
+  - "!*.crdownload"
+
+extraResources:
+  - from: "bin"
+    to: "bin"
+    filter:
+      - "ffprobe.exe"
+      - "LICENSE-FFMPEG.txt"
+      - "SOURCE.txt"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: "TobyFlow-Studio-Setup-${version}.${ext}"
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "TobyFlow Studio"
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+
+publish:
+  provider: github
+  owner: tobyflow
+  repo: tobyflow-studio
+  releaseType: release

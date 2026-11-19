@@ -1,6 +1,6 @@
 {
   "name": "tobyflow-studio-windows",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Ứng dụng TobyFlow Studio trên Windows: Tự động lưu video từ Chrome/TobyFlow theo ngày, xác thực ffprobe, cài đặt và cập nhật qua GitHub Releases",
   "main": "main/index.js",
   "scripts": {

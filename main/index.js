@@ -1,16 +1,38 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
+const electron = require('electron');
 const path = require('node:path');
+
+// Nếu vô tình chạy bằng `node main/index.js`, tự động chuyển hướng sang binary electron
+if (typeof electron === 'string') {
+  const { spawn } = require('node:child_process');
+  const child = spawn(electron, [path.join(__dirname, '..')], {
+    stdio: 'inherit',
+    windowsHide: false
+  });
+  child.on('close', (code) => process.exit(code || 0));
+  return;
+}
+
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = electron;
+const os = require('node:os');
+const fs = require('node:fs');
 const { migrateLegacyData, importLegacyDataFrom } = require('./dataMigration');
 const { ServerManager } = require('./serverManager');
 const { AppUpdater } = require('./updater');
 
+const logFile = path.join(os.tmpdir(), 'tobyflow_runtime.log');
+function runtimeLog(msg) {
+  try { fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`); } catch {}
+}
+runtimeLog('TobyFlow Studio main process loaded.');
+
 // Đảm bảo chỉ có một instance duy nhất của ứng dụng chạy tại một thời điểm
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
-  console.log('[TobyFlow] Một phiên bản khác của TobyFlow Studio đang chạy. Đang thoát...');
+  runtimeLog('Single instance lock not acquired. Exiting.');
   app.quit();
   process.exit(0);
 }
+runtimeLog('Single instance lock acquired.');
 
 let mainWindow = null;
 let serverManager = null;
@@ -26,13 +48,15 @@ app.on('second-instance', () => {
 });
 
 async function createWindow() {
+  runtimeLog('createWindow called.');
   // 1. Nhập và bảo tồn dữ liệu cũ từ legacy folder sang Windows userData nếu cần
   const userDataDir = app.getPath('userData');
+  runtimeLog(`userDataDir: ${userDataDir}`);
   try {
     const migResult = migrateLegacyData(userDataDir);
-    console.log('[TobyFlow] Di chuyển dữ liệu userData:', migResult);
+    runtimeLog(`migrateLegacyData result: ${JSON.stringify(migResult)}`);
   } catch (err) {
-    console.warn('[TobyFlow] Cảnh báo kiểm tra dữ liệu:', err.message);
+    runtimeLog(`migrateLegacyData error: ${err.message}`);
   }
 
   // 2. Khởi động server HTTP nhúng trên 127.0.0.1 với cổng an toàn
@@ -41,9 +65,14 @@ async function createWindow() {
     appVersion: app.getVersion()
   });
 
-  const { port, url, library } = await serverManager.start();
-  serverLibrary = library;
-  console.log(`[TobyFlow] Server nhúng đã sẵn sàng tại ${url}`);
+  try {
+    const { port, url, library } = await serverManager.start();
+    serverLibrary = library;
+    runtimeLog(`Server started successfully at ${url}`);
+  } catch (err) {
+    runtimeLog(`serverManager.start error: ${err.message}`);
+    throw err;
+  }
 
   // 3. Khởi tạo cửa sổ chính với các thiết lập bảo mật nghiêm ngặt
   mainWindow = new BrowserWindow({

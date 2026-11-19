@@ -1,5 +1,7 @@
 const electron = require('electron');
 const path = require('node:path');
+const os = require('node:os');
+const fs = require('node:fs');
 
 // Nếu vô tình chạy bằng `node main/index.js`, tự động chuyển hướng sang binary electron
 if (typeof electron === 'string') {
@@ -13,16 +15,33 @@ if (typeof electron === 'string') {
 }
 
 const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = electron;
-const os = require('node:os');
-const fs = require('node:fs');
 const { migrateLegacyData, importLegacyDataFrom } = require('./dataMigration');
 const { ServerManager } = require('./serverManager');
 const { AppUpdater } = require('./updater');
 
 const logFile = path.join(os.tmpdir(), 'tobyflow_runtime.log');
 function runtimeLog(msg) {
-  try { fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`); } catch {}
+  try {
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {}
 }
+
+function showFatalError(title, err) {
+  const msg = err && err.stack ? err.stack : String(err);
+  runtimeLog(`FATAL ERROR [${title}]: ${msg}`);
+  try {
+    dialog.showErrorBox(title, `TobyFlow Studio gặp sự cố và không thể tiếp tục:\n\n${msg}`);
+  } catch {}
+}
+
+process.on('uncaughtException', (err) => {
+  showFatalError('Lỗi hệ thống (Uncaught Exception)', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  showFatalError('Lỗi bất đồng bộ (Unhandled Rejection)', reason);
+});
+
 runtimeLog('TobyFlow Studio main process loaded.');
 
 // Đảm bảo chỉ có một instance duy nhất của ứng dụng chạy tại một thời điểm
@@ -39,6 +58,8 @@ let serverManager = null;
 let serverLibrary = null;
 let appUpdater = null;
 let isQuitting = false;
+let serverPort = null;
+let serverUrl = null;
 
 app.on('second-instance', () => {
   if (mainWindow) {
@@ -49,88 +70,111 @@ app.on('second-instance', () => {
 
 async function createWindow() {
   runtimeLog('createWindow called.');
-  // 1. Nhập và bảo tồn dữ liệu cũ từ legacy folder sang Windows userData nếu cần
-  const userDataDir = app.getPath('userData');
-  runtimeLog(`userDataDir: ${userDataDir}`);
   try {
-    const migResult = migrateLegacyData(userDataDir);
-    runtimeLog(`migrateLegacyData result: ${JSON.stringify(migResult)}`);
-  } catch (err) {
-    runtimeLog(`migrateLegacyData error: ${err.message}`);
-  }
-
-  // 2. Khởi động server HTTP nhúng trên 127.0.0.1 với cổng an toàn
-  serverManager = new ServerManager({
-    userDataDir,
-    appVersion: app.getVersion()
-  });
-
-  try {
-    const { port, url, library } = await serverManager.start();
-    serverLibrary = library;
-    runtimeLog(`Server started successfully at ${url}`);
-  } catch (err) {
-    runtimeLog(`serverManager.start error: ${err.message}`);
-    throw err;
-  }
-
-  // 3. Khởi tạo cửa sổ chính với các thiết lập bảo mật nghiêm ngặt
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 960,
-    minHeight: 640,
-    title: `TobyFlow Studio v${app.getVersion()}`,
-    backgroundColor: '#0c0e14',
-    show: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
-
-  // Ẩn menu mặc định của electron để giao diện gọn gàng, hiện đại
-  Menu.setApplicationMenu(null);
-
-  // Hiển thị mượt mà khi nội dung sẵn sàng
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-  });
-
-  // 4. Bảo mật điều hướng: Chặn mở tab lạ hoặc điều hướng ra ngoài localhost
-  mainWindow.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
+    // 1. Nhập và bảo tồn dữ liệu cũ từ legacy folder sang Windows userData nếu cần
+    const userDataDir = app.getPath('userData');
+    runtimeLog(`userDataDir: ${userDataDir}`);
     try {
-      const parsed = new URL(targetUrl);
-      if (['http:', 'https:'].includes(parsed.protocol)) {
-        shell.openExternal(targetUrl);
-      }
-    } catch {}
-    return { action: 'deny' };
-  });
+      const migResult = migrateLegacyData(userDataDir);
+      runtimeLog(`migrateLegacyData result: ${JSON.stringify(migResult)}`);
+    } catch (err) {
+      runtimeLog(`migrateLegacyData error: ${err.message}`);
+    }
 
-  mainWindow.webContents.on('will-navigate', (event, reqUrl) => {
-    if (!reqUrl.startsWith(`http://127.0.0.1:${port}`)) {
-      event.preventDefault();
+    // 2. Khởi động server HTTP nhúng trên 127.0.0.1 với cổng an toàn
+    serverManager = new ServerManager({
+      userDataDir,
+      appVersion: app.getVersion()
+    });
+
+    const startResult = await serverManager.start();
+    serverPort = startResult.port;
+    serverUrl = startResult.url;
+    serverLibrary = startResult.library;
+    runtimeLog(`Server started successfully at ${serverUrl} (port: ${serverPort})`);
+
+    // 3. Khởi tạo cửa sổ chính với các thiết lập bảo mật nghiêm ngặt
+    mainWindow = new BrowserWindow({
+      width: 1280,
+      height: 860,
+      minWidth: 960,
+      minHeight: 640,
+      title: `TobyFlow Studio v${app.getVersion()}`,
+      backgroundColor: '#0c0e14',
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+
+    // Ẩn menu mặc định của electron để giao diện gọn gàng, hiện đại
+    Menu.setApplicationMenu(null);
+
+    // Bắt lỗi nạp trang để hiển thị thông báo nhìn thấy được
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+      runtimeLog(`did-fail-load: code=${errorCode}, desc=${errorDescription}, url=${validatedURL}`);
+      dialog.showErrorBox(
+        'Lỗi nạp giao diện TobyFlow Studio',
+        `Không thể nạp giao diện từ: ${validatedURL}\nMã lỗi: ${errorCode} (${errorDescription})\n\nVui lòng kiểm tra lại kết nối mạng nội bộ 127.0.0.1.`
+      );
+    });
+
+    // Dự phòng hiển thị cửa sổ nếu ready-to-show bị chậm
+    const forceShowTimer = setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+        runtimeLog('Force showing mainWindow after 3s timeout.');
+        mainWindow.show();
+      }
+    }, 3000);
+
+    mainWindow.once('ready-to-show', () => {
+      clearTimeout(forceShowTimer);
+      runtimeLog('mainWindow ready-to-show fired.');
+      mainWindow.show();
+    });
+
+    // 4. Bảo mật điều hướng: Chặn mở tab lạ hoặc điều hướng ra ngoài localhost
+    mainWindow.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
       try {
-        const parsed = new URL(reqUrl);
+        const parsed = new URL(targetUrl);
         if (['http:', 'https:'].includes(parsed.protocol)) {
-          shell.openExternal(reqUrl);
+          shell.openExternal(targetUrl);
         }
       } catch {}
-    }
-  });
+      return { action: 'deny' };
+    });
 
-  // 5. Khởi tạo dịch vụ kiểm tra & cập nhật GitHub Releases
-  appUpdater = new AppUpdater(
-    mainWindow,
-    () => serverLibrary,
-    () => serverManager
-  );
+    mainWindow.webContents.on('will-navigate', (event, reqUrl) => {
+      const allowedPrefix = serverPort ? `http://127.0.0.1:${serverPort}` : 'http://127.0.0.1:';
+      if (!reqUrl.startsWith(allowedPrefix)) {
+        event.preventDefault();
+        try {
+          const parsed = new URL(reqUrl);
+          if (['http:', 'https:'].includes(parsed.protocol)) {
+            shell.openExternal(reqUrl);
+          }
+        } catch {}
+      }
+    });
 
-  // 6. Tải giao diện ứng dụng từ máy chủ nội bộ
-  await mainWindow.loadURL(url);
+    // 5. Khởi tạo dịch vụ kiểm tra & cập nhật GitHub Releases
+    appUpdater = new AppUpdater(
+      mainWindow,
+      () => serverLibrary,
+      () => serverManager
+    );
+
+    // 6. Tải giao diện ứng dụng từ máy chủ nội bộ
+    runtimeLog(`Loading URL: ${serverUrl}`);
+    await mainWindow.loadURL(serverUrl);
+    runtimeLog('loadURL resolved successfully.');
+  } catch (err) {
+    showFatalError('Lỗi khởi động TobyFlow Studio', err);
+    app.quit();
+  }
 }
 
 // Đăng ký các IPC Handlers cho preload script
@@ -216,14 +260,20 @@ function registerIpcHandlers() {
 
 // Vòng đời ứng dụng
 app.whenReady().then(async () => {
-  registerIpcHandlers();
-  await createWindow();
+  try {
+    registerIpcHandlers();
+    await createWindow();
+  } catch (err) {
+    showFatalError('Lỗi khởi động ứng dụng', err);
+  }
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       await createWindow();
     }
   });
+}).catch((err) => {
+  showFatalError('Lỗi khởi tạo Electron', err);
 });
 
 app.on('before-quit', async (event) => {
@@ -238,7 +288,7 @@ app.on('before-quit', async (event) => {
       await serverManager.stop();
     }
   } catch (err) {
-    console.warn('[TobyFlow] Dọn dẹp trước khi thoát:', err.message);
+    runtimeLog(`Dọn dẹp trước khi thoát lỗi: ${err.message}`);
   }
 });
 

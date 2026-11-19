@@ -55,6 +55,6 @@ nsis:
 
 publish:
   provider: github
-  owner: tobyflow
+  owner: nson496
   repo: tobyflow-studio
   releaseType: release

@@ -376,6 +376,23 @@
 
               <div class="inline-status success" id="settings-folder-status" style="margin-top:12px;">Đã sẵn sàng giám
                 sát thư mục.</div>
+
+              <!-- Legacy Data Migration / Import Section -->
+              <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <strong style="font-size:13px; color:#fff;">📦 Nhập dữ liệu từ phiên bản cũ</strong>
+                  <span style="font-size:11px; color:var(--muted);">Tùy chọn</span>
+                </div>
+                <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
+                  Nếu bạn đã từng sử dụng bản TobyFlow trước đó, hãy chọn thư mục cài đặt cũ hoặc thư mục data để nạp lại cấu hình và lịch sử đã lưu.
+                </p>
+                <div class="folder-row">
+                  <input id="settings-legacy-folder" type="text" placeholder="Đường dẫn thư mục ứng dụng cũ hoặc thư mục data..." spellcheck="false">
+                  <button class="button secondary" id="btn-browse-legacy">Duyệt...</button>
+                  <button class="button primary" id="btn-import-legacy" style="white-space:nowrap;">📥 Nhập dữ liệu</button>
+                </div>
+                <div id="legacy-import-status" style="font-size:12px; margin-top:8px;" hidden></div>
+              </div>
             </div>
 
             <!-- Naming Rules & Automated Test Runner Card -->

@@ -1,6 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
 const path = require('node:path');
-const { migrateLegacyData } = require('./dataMigration');
+const { migrateLegacyData, importLegacyDataFrom } = require('./dataMigration');
 const { ServerManager } = require('./serverManager');
 const { AppUpdater } = require('./updater');
 
@@ -157,6 +157,31 @@ function registerIpcHandlers() {
       } catch {}
     }
     return false;
+  });
+
+  ipcMain.handle('import-legacy-data', async (event, customFolder) => {
+    try {
+      const userDataDir = app.getPath('userData');
+      let targetFolder = customFolder;
+      if (!targetFolder && mainWindow) {
+        const res = await dialog.showOpenDialog(mainWindow, {
+          title: 'Chọn thư mục chứa dữ liệu cũ (thư mục ứng dụng cũ hoặc thư mục data)',
+          properties: ['openDirectory']
+        });
+        if (res.canceled || !res.filePaths || !res.filePaths.length) {
+          return { ok: false, canceled: true };
+        }
+        targetFolder = res.filePaths[0];
+      }
+      const result = importLegacyDataFrom(targetFolder, userDataDir);
+      if (serverLibrary) {
+        if (typeof serverLibrary.reloadSettings === 'function') serverLibrary.reloadSettings();
+        if (typeof serverLibrary.reloadHistory === 'function') serverLibrary.reloadHistory();
+      }
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   });
 }
 

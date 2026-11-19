@@ -634,6 +634,59 @@ async function saveFoldersSettings() {
   }
 }
 
+// --- Legacy Data Import ---
+async function handleImportLegacyData() {
+  const inputEl = $('settings-legacy-folder');
+  const statusEl = $('legacy-import-status');
+  const pathVal = inputEl ? inputEl.value.trim() : '';
+
+  if (statusEl) {
+    statusEl.hidden = false;
+    statusEl.style.color = '#eab308';
+    statusEl.textContent = 'Đang đọc và nhập dữ liệu từ bản cũ...';
+  }
+
+  try {
+    let res;
+    if (window.tobyflowElectron?.importLegacyData) {
+      res = await window.tobyflowElectron.importLegacyData(pathVal || undefined);
+    } else {
+      if (!pathVal) {
+        toast('Vui lòng chọn hoặc nhập đường dẫn thư mục cần nhập.', true);
+        if (statusEl) statusEl.hidden = true;
+        return;
+      }
+      res = await post('/api/import-legacy-data', { folderPath: pathVal });
+    }
+
+    if (res.canceled) {
+      if (statusEl) statusEl.hidden = true;
+      return;
+    }
+
+    if (res.ok) {
+      const details = res.result || res;
+      if (statusEl) {
+        statusEl.hidden = false;
+        statusEl.style.color = '#10b981';
+        statusEl.textContent = `✓ Đã nhập thành công từ '${details.from}'! (${details.copied?.join(', ') || ''})`;
+      }
+      toast('✓ Đã nhập thành công cấu hình và lịch sử từ phiên bản cũ!');
+      await loadStatus();
+      await scanSourceFolder(true);
+    } else {
+      throw new Error(res.error || 'Nhập dữ liệu không thành công');
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.style.color = '#ef4444';
+      statusEl.textContent = `Lỗi: ${err.message}`;
+    }
+    toast(`Lỗi nhập dữ liệu: ${err.message}`, true);
+  }
+}
+
 // --- Automated Test Runner ---
 async function runAutomatedTests() {
   const btn = $('btn-run-mock-tests');
@@ -751,6 +804,14 @@ function setupEvents() {
   $('settings-browse-folder').addEventListener('click', () => pickFolder('settings-destination'));
   $('settings-save-folders').addEventListener('click', saveFoldersSettings);
   $('settings-rescan-btn').addEventListener('click', () => scanSourceFolder(true));
+
+  // Legacy Data Import Actions
+  if ($('btn-browse-legacy')) {
+    $('btn-browse-legacy').addEventListener('click', () => pickFolder('settings-legacy-folder'));
+  }
+  if ($('btn-import-legacy')) {
+    $('btn-import-legacy').addEventListener('click', handleImportLegacyData);
+  }
 
   // Automated Tests Button
   $('btn-run-mock-tests').addEventListener('click', runAutomatedTests);

@@ -318,6 +318,30 @@ class VideoLibrary {
     return normalized;
   }
 
+  reloadSettings() {
+    this.settings = readJson(this.settingsFile, {
+      destination: '',
+      sourceFolder: '',
+      autoDownloadFolder: '',
+      autoSave: true
+    });
+    if (this.settings.autoSave === undefined) this.settings.autoSave = true;
+    if (!this.settings.sourceFolder && this.settings.autoDownloadFolder) {
+      this.settings.sourceFolder = this.settings.autoDownloadFolder;
+    }
+    if (!this.settings.autoDownloadFolder && this.settings.sourceFolder) {
+      this.settings.autoDownloadFolder = this.settings.sourceFolder;
+    }
+    this.processedSources = readJson(this.autoSavedFile, {});
+    this._restartWatcher();
+    return this.publicSettings();
+  }
+
+  reloadHistory() {
+    this.history = this._loadHistoryNormalized(this.historyFile);
+    return this.getHistory();
+  }
+
   publicSettings() {
     const destRoot = this.settings.destination || '';
     const srcFolder = this.settings.sourceFolder || this.settings.autoDownloadFolder || '';

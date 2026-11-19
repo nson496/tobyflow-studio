@@ -34,5 +34,8 @@ contextBridge.exposeInMainWorld('tobyflowElectron', {
   openPath: (folderOrFilePath) => ipcRenderer.invoke('open-path', folderOrFilePath),
 
   // Mở liên kết ngoài an toàn
-  openExternal: (url) => ipcRenderer.invoke('open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
+  // Nhập dữ liệu cũ từ thư mục người dùng chỉ định
+  importLegacyData: (folderPath) => ipcRenderer.invoke('import-legacy-data', folderPath)
 });

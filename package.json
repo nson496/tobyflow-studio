@@ -19,6 +19,10 @@
   ],
   "author": "TobyFlow Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nson496/tobyflow-studio.git"
+  },
   "dependencies": {
     "electron-updater": "^6.8.11"
   },

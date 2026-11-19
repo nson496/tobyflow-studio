@@ -579,6 +579,153 @@ async function runRealAppFlowTests() {
       });
     }
 
+    // ---------------------------------------------------------------------
+    // TEST 15: Nhập dữ liệu legacy: Cho phép chọn thư mục & gộp an toàn (không dùng hardcoded path)
+    // ---------------------------------------------------------------------
+    try {
+      const { importLegacyDataFrom } = require('../main/dataMigration');
+      const migrationCode = fs.readFileSync(path.join(__dirname, '..', 'main', 'dataMigration.js'), 'utf8');
+
+      // 1. Kiểm tra mã nguồn không chứa bất kỳ đường dẫn cá nhân E:\Projects
+      if (migrationCode.includes('E:\\Projects\\Tool Tobyflow')) {
+        throw new Error('dataMigration.js vẫn còn chứa đường dẫn cá nhân E:\\Projects\\Tool Tobyflow!');
+      }
+
+      // 2. Tạo dữ liệu cũ mô phỏng
+      const mockLegacyDir = path.join(testDir, 'legacy_export');
+      const mockLegacyData = path.join(mockLegacyDir, 'data');
+      const mockUserTarget = path.join(testDir, 'test_user_target');
+      fs.mkdirSync(mockLegacyData, { recursive: true });
+      fs.mkdirSync(mockUserTarget, { recursive: true });
+
+      fs.writeFileSync(path.join(mockLegacyData, 'settings.json'), JSON.stringify({
+        destination: 'D:\\OldVideos',
+        sourceFolder: 'D:\\OldDownloads',
+        autoSave: true
+      }));
+      fs.writeFileSync(path.join(mockLegacyData, 'history.json'), JSON.stringify([
+        { saveId: 'save_legacy_1', path: 'D:\\OldVideos\\2026-11-10\\vid1.mp4', fileHash: 'hash_legacy_1' }
+      ]));
+      fs.writeFileSync(path.join(mockLegacyData, 'auto_saved.json'), JSON.stringify({
+        'hash_legacy_1': { status: 'saved', targetPath: 'D:\\OldVideos\\2026-11-10\\vid1.mp4' }
+      }));
+
+      // Đặt sẵn 1 bản ghi hiện tại trong userTarget
+      fs.writeFileSync(path.join(mockUserTarget, 'history.json'), JSON.stringify([
+        { saveId: 'save_current_1', path: 'E:\\Videos\\2026-11-19\\vid2.mp4', fileHash: 'hash_current_2' }
+      ]));
+
+      // 3. Thực hiện nhập dữ liệu từ mockLegacyDir (truyền thư mục cha chứa data/)
+      const importResult = importLegacyDataFrom(mockLegacyDir, mockUserTarget);
+      if (!importResult.migrated) throw new Error('Không thể nhập dữ liệu cũ!');
+
+      const importedSettings = JSON.parse(fs.readFileSync(path.join(mockUserTarget, 'settings.json'), 'utf8'));
+      const importedHistory = JSON.parse(fs.readFileSync(path.join(mockUserTarget, 'history.json'), 'utf8'));
+
+      if (importedSettings.destination !== 'D:\\OldVideos') {
+        throw new Error(`Settings không được cập nhật: destination = ${importedSettings.destination}`);
+      }
+      if (importedHistory.length !== 2) {
+        throw new Error(`History không được gộp đúng: length = ${importedHistory.length} (Kỳ vọng: 2)`);
+      }
+
+      testResults.push({
+        ok: true,
+        name: '[TEST 15] Nhập dữ liệu legacy: Cho phép chọn thư mục & gộp an toàn (không dùng hardcoded path)',
+        details: 'Loại bỏ hoàn toàn đường dẫn cứng; cho phép người dùng chỉ định thư mục và gộp an toàn settings + history.'
+      });
+    } catch (e) {
+      testResults.push({
+        ok: false,
+        name: '[TEST 15] Nhập dữ liệu legacy',
+        details: e.message
+      });
+    }
+
+    // ---------------------------------------------------------------------
+    // TEST 16: An toàn cập nhật: quitAndInstall tiếp tục chờ khi video đang lưu (>15s), không đóng app giữa chừng
+    // ---------------------------------------------------------------------
+    try {
+      const { AppUpdater } = require('../main/updater');
+      const messages = [];
+
+      let simulatedSaving = true;
+      let appQuitCalled = false;
+      let serverStopped = false;
+
+      const mockWindow = {
+        isDestroyed: () => false,
+        webContents: {
+          send: (channel, data) => {
+            if (channel === 'update-status') messages.push(data);
+          }
+        }
+      };
+
+      const mockLibrary = {
+        isProcessingQueue: false,
+        saving: true,
+        autoSaveQueue: [{ status: 'processing', id: 'video_large_copy' }],
+        stopWatcher: () => {}
+      };
+
+      const mockServerManager = {
+        stop: async () => { serverStopped = true; }
+      };
+
+      let quitTriggered = false;
+      const mockAutoUpdater = {
+        autoDownload: false,
+        autoInstallOnAppQuit: false,
+        allowPrerelease: false,
+        allowDowngrade: false,
+        on: () => {},
+        quitAndInstall: () => { quitTriggered = true; }
+      };
+
+      // Định nghĩa updater giả lập
+      const updater = new AppUpdater(
+        mockWindow,
+        () => mockLibrary,
+        () => mockServerManager,
+        { autoUpdater: mockAutoUpdater }
+      );
+
+      // Cho quitAndInstall chạy nền
+      const installPromise = updater.quitAndInstall();
+
+      // Kiểm tra sau 200ms: mockLibrary vẫn đang saving -> quit tuyệt đối KHÔNG ĐƯỢC GỌI
+      await new Promise(r => setTimeout(r, 200));
+      if (quitTriggered || serverStopped) {
+        throw new Error('LỖI: Ứng dụng đã gọi thoát trong khi video đang sao chép!');
+      }
+
+      // Mô phỏng video hoàn tất sao chép
+      mockLibrary.saving = false;
+      mockLibrary.autoSaveQueue = [];
+
+      await installPromise;
+
+      // Chờ setImmediate
+      await new Promise(r => setTimeout(r, 50));
+
+      if (!quitTriggered || !serverStopped) {
+        throw new Error('Ứng dụng không kích hoạt quitAndInstall sau khi video đã sao chép xong!');
+      }
+
+      testResults.push({
+        ok: true,
+        name: '[TEST 16] An toàn cập nhật: quitAndInstall tiếp tục chờ khi video đang lưu, không đóng app giữa chừng',
+        details: 'Xác nhận app tiếp tục chờ và không bao giờ đóng giữa chừng khi còn tác vụ sao chép video.'
+      });
+    } catch (e) {
+      testResults.push({
+        ok: false,
+        name: '[TEST 16] An toàn cập nhật khi video đang lưu',
+        details: e.message
+      });
+    }
+
   } finally {
     try {
       fs.rmSync(testDir, { recursive: true, force: true });

@@ -284,6 +284,20 @@ function createAppServer(options = {}) {
         return json(res, 200, { ok: true });
       }
 
+      // 14b. Nhập dữ liệu từ thư mục phiên bản cũ do người dùng chọn
+      if (req.method === 'POST' && pathname === '/api/import-legacy-data') {
+        const input = await body(req);
+        const folder = input.folderPath || input.path;
+        if (!folder) {
+          throw Object.assign(new Error('Vui lòng cung cấp đường dẫn thư mục cần nhập.'), { status: 400 });
+        }
+        const { importLegacyDataFrom } = require('./main/dataMigration');
+        const result = importLegacyDataFrom(folder, dataDir);
+        library.reloadSettings();
+        library.reloadHistory();
+        return json(res, 200, { ok: true, result });
+      }
+
       // 15. Phát video xem trước (Preview streaming range-based)
       if (req.method === 'GET' && pathname.startsWith('/api/preview/')) {
         const id = pathname.slice('/api/preview/'.length);

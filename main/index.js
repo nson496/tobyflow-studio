@@ -1,23 +1,6 @@
-const electron = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const fs = require('node:fs');
-
-// Nếu vô tình chạy bằng `node main/index.js`, tự động chuyển hướng sang binary electron
-if (typeof electron === 'string') {
-  const { spawn } = require('node:child_process');
-  const child = spawn(electron, [path.join(__dirname, '..')], {
-    stdio: 'inherit',
-    windowsHide: false
-  });
-  child.on('close', (code) => process.exit(code || 0));
-  return;
-}
-
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = electron;
-const { migrateLegacyData, importLegacyDataFrom } = require('./dataMigration');
-const { ServerManager } = require('./serverManager');
-const { AppUpdater } = require('./updater');
 
 const logFile = path.join(os.tmpdir(), 'tobyflow_runtime.log');
 function runtimeLog(msg) {
@@ -26,13 +9,38 @@ function runtimeLog(msg) {
   } catch {}
 }
 
+runtimeLog('=== TobyFlow Studio Process Starting ===');
+runtimeLog(`Node version: ${process.version}`);
+runtimeLog(`Electron version: ${process.versions ? process.versions.electron : 'undefined'}`);
+runtimeLog(`ELECTRON_RUN_AS_NODE: ${process.env.ELECTRON_RUN_AS_NODE || 'unset'}`);
+
+let electron = require('electron');
+if (typeof electron === 'string' && process.versions && process.versions.electron) {
+  // Nếu bị npm package ghi đè trong môi trường Electron, lấy trực tiếp từ internal binding
+  try {
+    electron = require('electron/main');
+  } catch {}
+}
+
 function showFatalError(title, err) {
   const msg = err && err.stack ? err.stack : String(err);
   runtimeLog(`FATAL ERROR [${title}]: ${msg}`);
   try {
-    dialog.showErrorBox(title, `TobyFlow Studio gặp sự cố và không thể tiếp tục:\n\n${msg}`);
+    if (electron && electron.dialog) {
+      electron.dialog.showErrorBox(title, `TobyFlow Studio gặp sự cố và không thể tiếp tục:\n\n${msg}`);
+    }
   } catch {}
 }
+
+if (!electron || typeof electron !== 'object' || !electron.app) {
+  showFatalError('Lỗi khởi động Electron', new Error(`Môi trường Electron không hợp lệ (typeof electron = ${typeof electron}).`));
+  process.exit(1);
+}
+
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = electron;
+const { migrateLegacyData, importLegacyDataFrom } = require('./dataMigration');
+const { ServerManager } = require('./serverManager');
+const { AppUpdater } = require('./updater');
 
 process.on('uncaughtException', (err) => {
   showFatalError('Lỗi hệ thống (Uncaught Exception)', err);
